@@ -307,6 +307,12 @@ impl RtAliasLayer {
     }
 
     fn copy_tbs(tbs: &[u8]) -> CaliptraResult<()> {
+        caliptra_common::cprintln!("RT ALIAS TBS ({} bytes) = \n", tbs.len(),);
+        for byte in tbs {
+            caliptra_common::cprint!("{:#04x}, " * byte,);
+        }
+        caliptra_common::cprintln!("\n");
+
         let dst = unsafe {
             let ptr = &mut RTALIAS_TBS_ORG as *mut u8;
             core::slice::from_raw_parts_mut(ptr, tbs.len())

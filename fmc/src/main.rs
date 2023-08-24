@@ -34,27 +34,34 @@ use hand_off::HandOff;
 pub fn main() {}
 
 const BANNER: &str = r#"
-Running Caliptra FMC ...
+Running Caliptra FMC MODIFIED ...
 "#;
 
 #[no_mangle]
 pub extern "C" fn entry_point() -> ! {
     cprintln!("{}", BANNER);
 
+    cprintln!("Calling HandOff::from_previous()");
+
     if let Some(mut hand_off) = HandOff::from_previous() {
+        cprintln!("Creating env");
         let mut env = match unsafe { fmc_env::FmcEnv::new_from_registers() } {
             Ok(env) => env,
             Err(e) => report_error(e.into()),
         };
+        cprintln!("Calling handoff to_rt");
 
-        match flow::run(&mut env, &mut hand_off) {
-            Ok(_) => {
-                if hand_off.is_valid() {
-                    hand_off.to_rt(&mut env);
-                }
-            }
-            Err(e) => report_error(e.into()),
-        }
+        // Can certs here
+
+        hand_off.to_rt(&mut env);
+        // match flow::run(&mut env, &mut hand_off) {
+        //     Ok(_) => {
+        //         if hand_off.is_valid() {
+        //             hand_off.to_rt(&mut env);
+        //         }
+        //     }
+        //     Err(e) => report_error(e.into()),
+        // }
     }
     caliptra_drivers::ExitCtrl::exit(0xff)
 }
