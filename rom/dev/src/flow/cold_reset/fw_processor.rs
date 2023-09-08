@@ -211,7 +211,10 @@ impl FirmwareProcessor {
         };
 
         let mut verifier = ImageVerifier::new(venv);
+
+        cprintln!("\t\t---Verify start---");
         let info = verifier.verify(manifest, img_bundle_sz, ResetReason::ColdReset)?;
+        cprintln!("\t\t---Verify complete---");
 
         cprintln!(
             "[afmc] Image verified using Vendor ECC Key Index {}",

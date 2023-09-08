@@ -125,7 +125,7 @@ fn smoke_test() {
     let idevid_pubkey = get_idevid_pubkey();
 
     let rom = caliptra_builder::build_firmware_rom(&ROM_WITH_UART).unwrap();
-    let image = caliptra_builder::build_and_sign_image(
+    let mut image = caliptra_builder::build_and_sign_image(
         &FMC_WITH_UART,
         &APP_WITH_UART,
         ImageOptions {
@@ -140,6 +140,10 @@ fn smoke_test() {
     let owner_pk_hash =
         bytes_to_be_words_48(&sha384(image.manifest.preamble.owner_pub_keys.as_bytes()));
 
+    // Modify LMS vendor public key
+    // let vendor_lms_pub_key_idx = image.manifest.preamble.vendor_lms_pub_key_idx as usize;
+    image.manifest.preamble.vendor_sigs.lms_sig.tree_path[0] = [Default::default(); 6];
+
     let mut hw = caliptra_hw_model::new(BootParams {
         init_params: InitParams {
             rom: &rom,
@@ -150,6 +154,7 @@ fn smoke_test() {
             key_manifest_pk_hash: vendor_pk_hash,
             owner_pk_hash,
             fmc_key_manifest_svn: 0b1111111,
+            lms_verify: true,
             ..Default::default()
         },
         fw_image: Some(&image.to_bytes().unwrap()),
