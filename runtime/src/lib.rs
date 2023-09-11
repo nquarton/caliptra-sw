@@ -11,6 +11,7 @@ pub mod fips;
 pub mod handoff;
 pub mod info;
 mod invoke_dpe;
+mod pcr_quote;
 mod stash_measurement;
 mod update;
 mod verify;
@@ -47,7 +48,7 @@ use caliptra_drivers::{
     CaliptraError, CaliptraResult, DataVault, Ecc384, KeyVault, Lms, PersistentDataAccessor, Sha1,
     SocIfc,
 };
-use caliptra_drivers::{Hmac384, PcrBank, PcrId, Sha256, Sha384, Sha384Acc, Trng};
+use caliptra_drivers::{Hmac384, PcrBank, PcrId, Sha256, Sha384, Sha384Acc, Sha512, Trng};
 use caliptra_registers::mbox::enums::MboxStatusE;
 use caliptra_registers::{
     csrng::CsrngReg, dv::DvReg, ecc::EccReg, entropy_src::EntropySrcReg, hmac::HmacReg, kv::KvReg,
@@ -62,6 +63,7 @@ use dpe::{
     DPE_PROFILE,
 };
 
+use crate::pcr_quote::get_pcr_quote;
 #[cfg(feature = "test_only_commands")]
 use crate::verify::HmacVerifyCmd;
 
@@ -97,6 +99,9 @@ pub struct Drivers {
 
     // SHA2-384 Engine
     pub sha384: Sha384,
+
+    // SHA2-512 Engine
+    pub sha512: Sha512,
 
     // SHA2-384 Accelerator
     pub sha384_acc: Sha384Acc,
@@ -185,6 +190,7 @@ impl Drivers {
             soc_ifc: SocIfc::new(SocIfcReg::new()),
             sha256: Sha256::new(Sha256Reg::new()),
             sha384,
+            sha512: Sha512::new(Sha512Reg::new()),
             sha384_acc: Sha384Acc::new(Sha512AccCsr::new()),
             hmac384,
             ecc384,
@@ -317,6 +323,7 @@ fn handle_command(drivers: &mut Drivers) -> CaliptraResult<MboxStatusE> {
         CommandId::GET_IDEV_INFO => IDevIdInfoCmd::execute(drivers),
         CommandId::GET_LDEV_CERT => Err(CaliptraError::RUNTIME_UNIMPLEMENTED_COMMAND),
         CommandId::INVOKE_DPE => InvokeDpeCmd::execute(drivers, cmd_bytes),
+        CommandId::QUOTE_PCRS => get_pcr_quote(drivers, cmd_bytes),
         CommandId::ECDSA384_VERIFY => EcdsaVerifyCmd::execute(drivers, cmd_bytes),
         CommandId::STASH_MEASUREMENT => StashMeasurementCmd::execute(drivers, cmd_bytes),
         CommandId::DISABLE_ATTESTATION => DisableAttestationCmd::execute(drivers),
