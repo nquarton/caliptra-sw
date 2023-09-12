@@ -68,10 +68,13 @@ impl HandOff {
     /// Create a new `HandOff` from the FHT table.
     pub fn from_previous(persistent_data: &PersistentDataAccessor) -> Option<HandOff> {
         let fht = &persistent_data.get().fht;
+        
         // Perform basic sanity check of the FHT (check FHT marker, valid indices, etc.)
         if !fht.is_valid() {
             return None;
         }
+
+        caliptra_common::cprintln!("Looping forever"); loop{};
         Some(Self { fht: fht.clone() })
     }
 
