@@ -142,11 +142,11 @@ fn fake_boot_test() {
 
     assert_eq!(
         ldev_cert_txt.as_str(),
-        include_str!("smoke_testdata/ldevid_cert.txt")
+        include_str!("smoke_testdata/fake_ldevid_cert.txt")
     );
     assert_eq!(
         ldev_cert_der,
-        include_bytes!("smoke_testdata/ldevid_cert.der")
+        include_bytes!("smoke_testdata/fake_ldevid_cert.der")
     );
 
     assert!(
