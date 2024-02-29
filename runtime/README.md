@@ -281,6 +281,34 @@ Command Code: `0x5349_4756` ("SIGV")
 | chksum      | u32      | Checksum over other output arguments, computed by Caliptra. Little endian.
 | fips\_status | u32      | Indicates if the command is FIPS approved or an error.
 
+### LMS\_SIGNATURE\_VERIFY
+
+Verifies an LMS signature. The hash to be verified is taken from
+Caliptra's SHA384 accelerator peripheral.
+
+Command Code: `0x4C4D_5356` ("LMSV")
+
+*Table: `LMS_SIGNATURE_VERIFY` input arguments*
+
+| **Name**             | **Type** | **Description**
+| --------             | -------- | ---------------
+| chksum               | u32      | Checksum over other input arguments, computed by the caller. Little endian.
+| pub_key_tree_type    | u8[4]    | LMS public key algorithm type. Must equal 12.
+| pub_key_ots_type     | u8[4]    | LM-OTS algorithm type. Must equal 7.
+| pub_key_id           | u8[16]   | Private key identifier
+| pub_key_digest       | u8[24]   | Public key hash value
+| signature_q          | u8[4]    | Leaf of the Merkle tree where the OTS public key appears
+| signature_ots        | u8[1252] | LM-OTS signature
+| signature_tree_type  | u8[4]    | LMS signature Algorithm type. Must equal 12.
+| signature_tree_path  | u8[360]  | Path through the tree from the leaf associated with the LM-OTS signature to the root
+
+*Table: `LMS_SIGNATURE_VERIFY` output arguments*
+
+| **Name**    | **Type** | **Description**
+| --------    | -------- | ---------------
+| chksum      | u32      | Checksum over other output arguments, computed by Caliptra. Little endian.
+| fips\_status | u32      | Indicates if the command is FIPS approved or an error.
+
 ### STASH\_MEASUREMENT
 
 Makes a measurement into the DPE default context. This command is intendend for
