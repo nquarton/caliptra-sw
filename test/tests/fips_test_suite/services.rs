@@ -567,7 +567,7 @@ pub fn exec_cmd_shutdown<T: HwModel>(hw: &mut T) {
 
 #[test]
 pub fn check_version_rom() {
-    let mut hw = fips_test_init_to_rom(None);
+    let mut hw = fips_test_init_to_rom(None, None);
 
     // FMC and FW version should both be 0 before loading
     exec_cmd_version(&mut hw, 0x0, 0x0);
@@ -575,7 +575,7 @@ pub fn check_version_rom() {
 
 #[test]
 pub fn check_version_rt() {
-    let mut hw = fips_test_init_to_rt(None);
+    let mut hw = fips_test_init_to_rt(None, None);
 
     exec_cmd_version(
         &mut hw,
@@ -586,7 +586,7 @@ pub fn check_version_rt() {
 
 #[test]
 pub fn execute_all_services_rom() {
-    let mut hw = fips_test_init_to_rom(None);
+    let mut hw = fips_test_init_to_rom(None, None);
 
     // TODO: SHA accelerator engine
 
@@ -614,10 +614,13 @@ pub fn execute_all_services_rom() {
 #[test]
 pub fn execute_all_services_rt() {
     let fw_image = fips_fw_image();
-    let mut hw = fips_test_init_to_rt(Some(BootParams {
-        fw_image: Some(&fw_image),
-        ..Default::default()
-    }));
+    let mut hw = fips_test_init_to_rt(
+        None,
+        Some(BootParams {
+            fw_image: Some(&fw_image),
+            ..Default::default()
+        }),
+    );
 
     // TODO: SHA accelerator engine
 
