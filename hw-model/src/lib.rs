@@ -597,7 +597,6 @@ pub trait HwModel {
 
     /// Toggle reset pins and wait for ready_for_fuses
     fn warm_reset(&mut self) {
-        // sw-emulator lacks support: https://github.com/chipsalliance/caliptra-sw/issues/540
         panic!("warm_reset unimplemented");
     }
 
@@ -1725,7 +1724,7 @@ mod tests {
 
         model.cold_reset();
 
-        model.boot(BootParams::default());
+        model.boot(BootParams::default()).unwrap();
 
         model.step_until_output("hii").unwrap();
     }
