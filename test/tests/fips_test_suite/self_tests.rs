@@ -12,16 +12,17 @@ use common::*;
 pub fn kat_halt_check_no_output() {
     let rom = caliptra_builder::build_firmware_rom(&ROM_WITH_UART_FIPS_TEST_HOOKS).unwrap();
 
-    let boot_params = BootParams {
-        init_params: InitParams {
+    let mut hw = fips_test_init_to_boot_start(
+        Some(InitParams {
             rom: &rom,
             ..Default::default()
-        },
-        initial_dbg_manuf_service_reg: (FipsTestHook::HALT_SELF_TESTS as u32) << HOOK_CODE_OFFSET,
-        ..Default::default()
-    };
-
-    let mut hw = fips_test_init_to_boot_start(Some(boot_params));
+        }),
+        Some(BootParams {
+            initial_dbg_manuf_service_reg: (FipsTestHook::HALT_SELF_TESTS as u32)
+                << HOOK_CODE_OFFSET,
+            ..Default::default()
+        }),
+    );
 
     // Wait for ACK that ROM reached halt point
     hook_wait_for_complete(&mut hw);
@@ -45,16 +46,16 @@ pub fn kat_halt_check_no_output() {
 pub fn kat_sha384_error() {
     let rom = caliptra_builder::build_firmware_rom(&ROM_WITH_UART_FIPS_TEST_HOOKS).unwrap();
 
-    let boot_params = BootParams {
-        init_params: InitParams {
+    let mut hw = fips_test_init_to_boot_start(
+        Some(InitParams {
             rom: &rom,
             ..Default::default()
-        },
-        initial_dbg_manuf_service_reg: (FipsTestHook::SHA384_ERROR as u32) << HOOK_CODE_OFFSET,
-        ..Default::default()
-    };
-
-    let mut hw = fips_test_init_to_boot_start(Some(boot_params));
+        }),
+        Some(BootParams {
+            initial_dbg_manuf_service_reg: (FipsTestHook::SHA384_ERROR as u32) << HOOK_CODE_OFFSET,
+            ..Default::default()
+        }),
+    );
 
     // Wait for fatal error
     hw.step_until(|m| m.soc_ifc().cptra_fw_error_fatal().read() != 0);
@@ -65,9 +66,26 @@ pub fn kat_sha384_error() {
         u32::from(CaliptraError::ROM_KAT_SHA384_DIGEST_MISMATCH)
     );
 
+    // // Clear the fatal error
+    // hw.soc_ifc().cptra_fw_error_fatal().write(|_| 0);
+
     // TODO: Verify we cannot use the algorithm
     // TODO: Attempt to clear the error in an undocumented way
+
     // TODO: Restart Caliptra
+    if cfg!(any(feature = "verilator", feature = "fpga_realtime")) {
+        hw.cold_reset();
+    } else {
+        hw = fips_test_init_model(Some(InitParams {
+            rom: &rom,
+            ..Default::default()
+        }))
+    }
+
+    hw.boot(BootParams::default());
+
+    hw.step_until(|m| m.soc_ifc().cptra_flow_status().read().ready_for_fw());
+
     // TODO: Verify crypto operations can be performed
 }
 
@@ -76,16 +94,16 @@ pub fn kat_sha384_error() {
 pub fn kat_lms_error() {
     let rom = caliptra_builder::build_firmware_rom(&ROM_WITH_UART_FIPS_TEST_HOOKS).unwrap();
 
-    let boot_params = BootParams {
-        init_params: InitParams {
+    let mut hw = fips_test_init_to_boot_start(
+        Some(InitParams {
             rom: &rom,
             ..Default::default()
-        },
-        initial_dbg_manuf_service_reg: (FipsTestHook::LMS_ERROR as u32) << HOOK_CODE_OFFSET,
-        ..Default::default()
-    };
-
-    let mut hw = fips_test_init_to_boot_start(Some(boot_params));
+        }),
+        Some(BootParams {
+            initial_dbg_manuf_service_reg: (FipsTestHook::LMS_ERROR as u32) << HOOK_CODE_OFFSET,
+            ..Default::default()
+        }),
+    );
 
     // Wait for fatal error
     hw.step_until(|m| m.soc_ifc().cptra_fw_error_fatal().read() != 0);

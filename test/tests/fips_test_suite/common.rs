@@ -124,16 +124,8 @@ impl RtExpVals {
 //       HELPER FUNCTIONS
 // =================================
 
-// Generic helper to boot to ROM or runtime
-// Builds ROM, if not provided
-// HW Model will boot to runtime if image is provided
-fn fips_test_init_base(
-    init_params: Option<InitParams>,
-    boot_params: Option<BootParams>,
-    fw_image_override: Option<&[u8]>,
-) -> DefaultHwModel {
+pub fn fips_test_init_model(init_params: Option<InitParams>) -> DefaultHwModel {
     // Create params if not provided
-    let mut boot_params = boot_params.unwrap_or(BootParams::default());
     let mut init_params = init_params.unwrap_or(InitParams::default());
 
     // Check that ROM was not provided if the immutable_rom feature is set
@@ -159,22 +151,38 @@ fn fips_test_init_base(
         init_params.rom = &rom;
     }
 
-    // Add fw image override to boot params if provided
-    if fw_image_override.is_some() {
-        // Sanity check that the caller functions are written correctly
-        if boot_params.fw_image.is_some() {
-            panic!("FIPS_TEST_SUITE BUG: Should never have a fw_image override and a fw_image in boot params")
-        }
-        boot_params.fw_image = fw_image_override;
-    }
-
     // Create the model
-    caliptra_hw_model::new(init_params, boot_params).unwrap()
+    caliptra_hw_model::new_unbooted(init_params).unwrap()
+}
+
+fn fips_test_boot<T: HwModel>(hw: &mut T, boot_params: Option<BootParams>) {
+    // Create params if not provided
+    let mut boot_params = boot_params.unwrap_or(BootParams::default());
+
+    // Boot
+    hw.boot(boot_params).unwrap();
+}
+
+// Generic helper to boot to ROM or runtime
+// Builds ROM, if not provided
+// HW Model will boot to runtime if image is provided
+fn fips_test_init_base(
+    init_params: Option<InitParams>,
+    boot_params: Option<BootParams>,
+) -> DefaultHwModel {
+    let mut hw = fips_test_init_model(init_params);
+
+    fips_test_boot(&mut hw, boot_params);
+
+    hw
 }
 
 // Initializes Caliptra
 // Builds and uses default ROM if not provided
-pub fn fips_test_init_to_boot_start(boot_params: Option<BootParams>) -> DefaultHwModel {
+pub fn fips_test_init_to_boot_start(
+    init_params: Option<InitParams>,
+    boot_params: Option<BootParams>,
+) -> DefaultHwModel {
     // Check that no fw_image is in boot params
     if let Some(ref params) = boot_params {
         if params.fw_image.is_some() {
@@ -182,7 +190,7 @@ pub fn fips_test_init_to_boot_start(boot_params: Option<BootParams>) -> DefaultH
         }
     }
 
-    fips_test_init_base(boot_params, None)
+    fips_test_init_base(init_params, boot_params)
 }
 
 // Initializes caliptra to "ready_for_fw"
@@ -191,14 +199,7 @@ pub fn fips_test_init_to_rom(
     init_params: Option<InitParams>,
     boot_params: Option<BootParams>,
 ) -> DefaultHwModel {
-    // Check that no fw_image is in boot params
-    if let Some(ref boot_params) = boot_params {
-        if boot_params.fw_image.is_some() {
-            panic!("No FW image should be provided when calling fips_test_init_to_rom")
-        }
-    }
-
-    let mut model = fips_test_init_base(init_params, boot_params, None);
+    let mut model = fips_test_init_base(init_params, boot_params);
 
     // Step to ready for FW in ROM
     model.step_until(|m| m.soc_ifc().cptra_flow_status().read().ready_for_fw());
@@ -212,25 +213,52 @@ pub fn fips_test_init_to_rt(
     init_params: Option<InitParams>,
     boot_params: Option<BootParams>,
 ) -> DefaultHwModel {
-    let mut build_fw = true;
+    // Create params if not provided
+    let mut boot_params = boot_params.unwrap_or(BootParams::default());
 
-    if let Some(ref boot_params) = boot_params {
-        if boot_params.fw_image.is_some() {
-            build_fw = false;
-        }
-    }
-
-    if build_fw {
-        // If FW was not provided, build it or get it from the specified path
-        let fw_image = fips_fw_image();
-
-        fips_test_init_base(init_params, boot_params, Some(&fw_image))
+    if boot_params.fw_image.is_some() {
+        fips_test_init_base(init_params, Some(boot_params))
     } else {
-        fips_test_init_base(init_params, boot_params, None)
+        let fw_image = fips_fw_image();
+        boot_params.fw_image = Some(&fw_image);
+        fips_test_init_base(init_params, Some(boot_params))
     }
 
     // HW model will complete FW upload cmd, nothing to wait for
 }
+
+// fn fips_test_cold_reset<T: HwModel>(
+//     hw: &mut T,
+//     init_params: Option<InitParams>,
+//     boot_params: Option<BootParams>,
+// ) -> DefaultHwModel  {
+//     // TODO: Issue cold reset (verilator and FPGA)
+//     // Create new_unbooted (sw-emulator)
+//     // Shadow hw with new instance
+//     let hw = fips_test_init_model(init_params);
+
+//     // Boot
+//     fips_test_boot(hw, boot_params);
+
+//     hw
+// }
+
+// fn fips_test_cold_reset_to_rt<T: HwModel>(
+//     hw: &mut T,
+//     init_params: Option<InitParams>,
+//     boot_params: Option<BootParams>,
+// ) -> DefaultHwModel {
+//     // Create params if not provided
+//     let mut boot_params = boot_params.unwrap_or(BootParams::default());
+
+//     if boot_params.fw_image.is_some() {
+//         fips_test_cold_reset(hw, init_params, Some(boot_params))
+//     } else {
+//         let fw_image = fips_fw_image();
+//         boot_params.fw_image = Some(&fw_image);
+//         fips_test_cold_reset(hw, init_params, Some(boot_params))
+//     }
+// }
 
 pub fn mbx_send_and_check_resp_hdr<T: HwModel, U: FromBytes + AsBytes>(
     hw: &mut T,
