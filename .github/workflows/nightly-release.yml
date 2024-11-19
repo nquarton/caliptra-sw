@@ -64,7 +64,7 @@ jobs:
     uses: ./.github/workflows/fpga.yml
     with:
       artifact-suffix: -fpga-realtime-hw-1.0-etrng-log
-      extra-features: slow_tests
+      extra-features: slow_tests,ci-rom-1.0
       hw-version: "1.0"
       rom-logging: true
       fpga-itrng: false
@@ -76,7 +76,7 @@ jobs:
     uses: ./.github/workflows/fpga.yml
     with:
       artifact-suffix: -fpga-realtime-hw-1.0-etrng-nolog
-      extra-features: slow_tests
+      extra-features: slow_tests,ci-rom-1.0
       hw-version: "1.0"
       rom-logging: false
       fpga-itrng: false
@@ -88,7 +88,7 @@ jobs:
     uses: ./.github/workflows/fpga.yml
     with:
       artifact-suffix: -fpga-realtime-hw-1.0-itrng-log
-      extra-features: slow_tests,itrng
+      extra-features: slow_tests,itrng,ci-rom-1.0
       hw-version: "1.0"
       rom-logging: true
       fpga-itrng: true
@@ -100,7 +100,7 @@ jobs:
     uses: ./.github/workflows/fpga.yml
     with:
       artifact-suffix: -fpga-realtime-hw-1.0-itrng-nolog
-      extra-features: slow_tests,itrng
+      extra-features: slow_tests,itrng,ci-rom-1.0
       hw-version: "1.0"
       rom-logging: false
       fpga-itrng: true
@@ -200,7 +200,7 @@ jobs:
     uses: ./.github/workflows/fw-test-emu.yml
     with:
       artifact-suffix: -sw-emulator-hw-1.0-etrng-log
-      extra-features: hw-1.0,slow_tests
+      extra-features: hw-1.0,ci-rom-1.0slow_tests
       rom-logging: true
 
   sw-emulator-hw-1_0-full-suite-etrng-nolog:
@@ -210,7 +210,7 @@ jobs:
     uses: ./.github/workflows/fw-test-emu.yml
     with:
       artifact-suffix: -sw-emulator-hw-1.0-etrng-nolog
-      extra-features: hw-1.0,slow_tests
+      extra-features: hw-1.0,ci-rom-1.0slow_tests
       rom-logging: false
 
   sw-emulator-hw-1_0-full-suite-itrng-log:
@@ -220,7 +220,7 @@ jobs:
     uses: ./.github/workflows/fw-test-emu.yml
     with:
       artifact-suffix: -sw-emulator-hw-1.0-itrng-log
-      extra-features: hw-1.0,slow_tests,itrng
+      extra-features: hw-1.0,ci-rom-1.0slow_tests,itrng
       rom-logging: true
 
   sw-emulator-hw-1_0-full-suite-itrng-nolog:
@@ -230,7 +230,7 @@ jobs:
     uses: ./.github/workflows/fw-test-emu.yml
     with:
       artifact-suffix: -sw-emulator-hw-1.0-itrng-nolog
-      extra-features: hw-1.0,slow_tests,itrng
+      extra-features: hw-1.0,ci-rom-1.0slow_tests,itrng
       rom-logging: false
 
   create-release:
