@@ -219,6 +219,89 @@ fn test_idevid() {
     );
 }
 
+fn print_u32_array_hex(arr: &[u32]) {
+    print!("[ ");
+    for num in arr {
+        print!("0x{:08x}, ", num);
+    }
+    println!("]");
+}
+
+fn extract_xy(
+    public_key: &PKey<Public>,
+) -> Result<([u32; 12], [u32; 12]), openssl::error::ErrorStack> {
+    use openssl::bn::BigNumContext;
+
+    // Convert PKey<Public> to EcKey<Public>
+    let ec_key = public_key.ec_key()?;
+
+    // Get the group associated with the key
+    let group = ec_key.group();
+
+    // Get the public key point
+    let point = ec_key.public_key();
+
+    // Create a BigNumContext for calculations
+    let mut ctx = BigNumContext::new()?;
+
+    // Allocate BigNums for x and y
+    let mut x = openssl::bn::BigNum::new()?;
+    let mut y = openssl::bn::BigNum::new()?;
+
+    // Convert the EC point to affine coordinates
+    point.affine_coordinates(group, &mut x, &mut y, &mut ctx)?;
+
+    // Convert BigNums to bytes
+    let mut x_arr: [u32; 12] = x
+        .to_vec()
+        .chunks_exact(4)
+        .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+        .collect::<Vec<u32>>()
+        .try_into()
+        .expect("X should have exactly 12 elements");
+
+    let mut y_arr: [u32; 12] = y
+        .to_vec()
+        .chunks_exact(4)
+        .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+        .collect::<Vec<u32>>()
+        .try_into()
+        .expect("Y should have exactly 12 elements");
+
+    swap_word_bytes_inplace(&mut x_arr);
+    swap_word_bytes_inplace(&mut y_arr);
+
+    Ok((x_arr, y_arr))
+}
+
+#[test]
+fn repro_ecc_kat() {
+    let priv_key_seed: [u32; 12] = [0u32; 12];
+
+    let mut priv_key: [u32; 12] = transmute!(hmac384_drbg_keygen(
+        swap_word_bytes(&priv_key_seed).as_bytes(),
+        swap_word_bytes(&ECDSA_KEYGEN_NONCE).as_bytes()
+    ));
+    swap_word_bytes_inplace(&mut priv_key);
+
+    let pub_key: PKey<Public> =
+        derive_ecdsa_key(swap_word_bytes(&priv_key).as_bytes().try_into().unwrap());
+
+    println!("priv key: ");
+    print_u32_array_hex(&priv_key);
+    //println!("pub key: {:?}", pub_key);
+
+    match extract_xy(&pub_key) {
+        Ok((x, y)) => {
+            println!("x: ");
+            print_u32_array_hex(&x);
+            println!("y: ");
+            print_u32_array_hex(&y);
+        }
+        Err(e) => eprintln!("Error extracting coordinates: {:?}", e),
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LDevId {
     pub cdi: [u32; 12],
