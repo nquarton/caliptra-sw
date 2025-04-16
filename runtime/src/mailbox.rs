@@ -110,7 +110,14 @@ impl Mailbox {
     /// Gets the user of the mailbox
     pub fn user(&self) -> u32 {
         let mbox = self.mbox.regs();
-        mbox.user().read()
+        let user = mbox.user().read();
+
+        // WORKAROUND! This is NOT for production use!
+        // Remap PAUSER 0xFFFF_FFFF to 0x1
+        match user {
+            0xFFFFFFFF => 0x1,
+            _ => user,
+        }
     }
 
     /// Copies data in mailbox to `buf`
