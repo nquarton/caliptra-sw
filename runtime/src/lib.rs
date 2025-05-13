@@ -145,12 +145,16 @@ fn enter_idle(drivers: &mut Drivers) {
 ///
 /// * `MboxStatusE` - the mailbox status (DataReady when we send a response)
 fn handle_command(drivers: &mut Drivers) -> CaliptraResult<MboxStatusE> {
-    if drivers.mbox.user() == 0xffffffff {
+    if drivers.mbox.user() == 0xFFFF_FFFE {
         let mut reg = unsafe { caliptra_registers::soc_ifc::SocIfcReg::new() };
         let reg = reg.regs_mut();
         let mut access_violation_count = reg.cptra_fw_extended_error_info().at(7).read();
         access_violation_count += 1;
         reg.cptra_fw_extended_error_info().at(7).write(|_| access_violation_count);
+
+        let mut access_violation_count = reg.cptra_generic_output_wires().at(1).read();
+        access_violation_count += 1;
+        reg.cptra_generic_output_wires().at(1).write(|_| access_violation_count);
     }
 
     // For firmware update, don't read data from the mailbox

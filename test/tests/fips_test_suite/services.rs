@@ -813,3 +813,21 @@ pub fn fips_self_test_rt() {
     // SELF TEST GET RESULTS
     exec_cmd_self_test_get_results(&mut hw);
 }
+
+#[test]
+pub fn boot_test() {
+    let mut hw = fips_test_init_to_rt(None, None);
+
+    // Step to ready for runtime
+    hw.step_until(|m| m.soc_ifc().cptra_flow_status().read().ready_for_runtime());
+
+    hw.set_apb_pauser(0xFFFF_FFFE);
+
+    exec_cmd_stash_measurement(&mut hw);
+    exec_cmd_stash_measurement(&mut hw);
+    exec_cmd_stash_measurement(&mut hw);
+
+    // Read generic output register
+    println!("Generic output reg 1 is: {}", hw.soc_ifc().cptra_generic_output_wires().at(1).read());
+    println!("Extended Err info 7 is: {}", hw.soc_ifc().cptra_fw_extended_error_info().at(7).read());
+}
