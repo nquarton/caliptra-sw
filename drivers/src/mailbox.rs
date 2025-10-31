@@ -294,8 +294,16 @@ mod fifo {
 
     fn dequeue_words(mbox: &mut MboxCsr, buf: &mut [Unalign<u32>]) {
         let mbox = mbox.regs_mut();
+        let mut offset = 0;
         for word in buf.iter_mut() {
             *word = Unalign::new(mbox.dataout().read());
+            crate::cprintln!("Read 0x{:08X} (offset 0x{:X})", word.get(), offset);
+            offset += size_of::<u32>();
+            // DEBUG: Force one extra read
+            if offset == 0x15f74 {
+                let extra_dword = mbox.dataout().read();
+                crate::cprintln!("extra 0x{:08X}", extra_dword);
+            }
         }
     }
     pub fn dequeue(mbox: &mut MboxCsr, mut buf: &mut [u8]) {
@@ -305,6 +313,8 @@ mod fifo {
         }
 
         let len_words = buf.len() / size_of::<u32>();
+        //crate::cprintln!("Mbx dlen {}", dlen_bytes);
+        crate::cprintln!("Mbx read {} dwords", len_words);
         let (mut buf_words, suffix) =
             LayoutVerified::new_slice_unaligned_from_prefix(buf, len_words).unwrap();
 
@@ -316,6 +326,7 @@ mod fifo {
                 .as_bytes_mut()
                 .copy_from_slice(&last_word.as_bytes()[..suffix_len]);
         }
+        //crate::cprintln!("Complete");
     }
 
     fn enqueue_words(mbox: &mut MboxCsr, buf: &[Unalign<u32>]) {

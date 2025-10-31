@@ -813,3 +813,13 @@ pub fn fips_self_test_rt() {
     // SELF TEST GET RESULTS
     exec_cmd_self_test_get_results(&mut hw);
 }
+
+use caliptra_api::SocManager;
+#[test]
+pub fn boot_test() {
+    let mut hw = fips_test_init_to_rt(None, None);
+
+            // Step to ready for runtime
+    hw.step_until(|m| m.soc_ifc().cptra_flow_status().read().ready_for_runtime());
+}
+
