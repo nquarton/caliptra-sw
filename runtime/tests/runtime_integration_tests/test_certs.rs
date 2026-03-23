@@ -3,18 +3,19 @@
 use crate::common::PQC_KEY_TYPE;
 use crate::common::{
     execute_dpe_cmd, generate_test_x509_cert, get_ecc_fmc_alias_cert, get_mldsa_fmc_alias_cert,
-    get_rt_alias_ecc384_cert, get_rt_alias_mldsa87_cert, run_rt_test, run_rt_test_pqc, DpeResult,
-    RuntimeTestArgs, TEST_LABEL,
+    get_rt_alias_ecc384_cert, get_rt_alias_mldsa87_cert, run_rt_test, run_rt_test_pqc,
+    CertifyKeyCommandNoRef, CreateCertifyKeyCmdArgs, DpeResult, RuntimeTestArgs, TEST_LABEL,
 };
 use caliptra_api::SocManager;
 use caliptra_builder::firmware::{APP_WITH_UART, APP_WITH_UART_FPGA, FMC_WITH_UART};
 use caliptra_builder::ImageOptions;
 use caliptra_common::mailbox_api::{
-    CommandId, GetIdevCertResp, GetIdevEcc384CertReq, GetIdevEcc384InfoResp, GetIdevMldsa87CertReq,
-    GetIdevMldsa87InfoResp, GetLdevCertResp, GetRtAliasCertResp, MailboxReq, MailboxReqHeader,
-    StashMeasurementReq,
+    CommandId, GetIdevCertResp, GetIdevCsrResp, GetIdevEcc384CertReq, GetIdevEcc384InfoResp,
+    GetIdevMldsa87CertReq, GetIdevMldsa87InfoResp, GetLdevCertResp, GetRtAliasCertResp,
+    MailboxReq, MailboxReqHeader, StashMeasurementReq,
 };
 use caliptra_common::x509::get_tbs;
+use caliptra_drivers::MfgFlags;
 use caliptra_error::CaliptraError;
 use caliptra_hw_model::{BootParams, DefaultHwModel, Fuses, HwModel, InitParams};
 use caliptra_image_types::FwVerificationPqcKeyType;
@@ -740,4 +741,93 @@ pub fn test_all_measurement_apis() {
             assert_eq!(&rom_stash_dpe_cert, derive_context_dpe_cert);
         }
     }
+}
+
+#[test]
+fn test_extract_mldsa_certs() {
+    use std::io::Write;
+    let mut model = run_rt_test(RuntimeTestArgs::default());
+
+    // LDEV MLDSA cert
+    let ldev_resp = get_ldev_mldsa_cert(&mut model);
+    let mut f = std::fs::File::create("ldev_mldsa87_cert.bin").unwrap();
+    f.write_all(&ldev_resp.data[..ldev_resp.data_size as usize])
+        .expect("write must succeed");
+
+    // FMC alias MLDSA cert
+    let fmc_resp = get_mldsa_fmc_alias_cert(&mut model);
+    let mut f = std::fs::File::create("fmc_alias_mldsa87_cert.bin").unwrap();
+    f.write_all(&fmc_resp.data[..fmc_resp.data_size as usize])
+        .expect("write must succeed");
+
+    // RT alias MLDSA cert
+    let rt_resp = get_rt_alias_mldsa87_cert(&mut model);
+    let mut f = std::fs::File::create("rt_alias_mldsa87_cert.bin").unwrap();
+    f.write_all(&rt_resp.data[..rt_resp.data_size as usize])
+        .expect("write must succeed");
+
+    // DPE MLDSA cert: derive a context then certify key
+    let measurement: [u8; 48] = core::array::from_fn(|i| (i + 1) as u8);
+    let derive_context_cmd = DeriveContextCmd {
+        handle: ContextHandle::default(),
+        data: TciMeasurement(measurement),
+        flags: DeriveContextFlags::MAKE_DEFAULT | DeriveContextFlags::INPUT_ALLOW_X509,
+        tci_type: 0,
+        target_locality: 0,
+        svn: 0,
+    };
+    execute_dpe_cmd(
+        &mut model,
+        CaliptraDpeProfile::Mldsa87,
+        &mut Command::from(&derive_context_cmd),
+        DpeResult::Success,
+    );
+
+    let certify_key_cmd = CertifyKeyCommandNoRef::new(CreateCertifyKeyCmdArgs {
+        profile: CaliptraDpeProfile::Mldsa87,
+        handle: ContextHandle::default(),
+        label: TEST_LABEL,
+        flags: CertifyKeyFlags::empty(),
+        format: CertifyKeyCommand::FORMAT_X509,
+    });
+    let resp = execute_dpe_cmd(
+        &mut model,
+        CaliptraDpeProfile::Mldsa87,
+        &mut Command::from(&certify_key_cmd),
+        DpeResult::Success,
+    );
+    let Some(Response::CertifyKey(CertifyKeyResp::Mldsa87(certify_key_resp))) = resp else {
+        panic!("Wrong response type!");
+    };
+    let mut f = std::fs::File::create("dpe_mldsa87_cert.bin").unwrap();
+    f.write_all(&certify_key_resp.cert[..certify_key_resp.cert_size as usize])
+        .expect("write must succeed");
+}
+
+#[test]
+fn test_extract_mldsa_idev_csr() {
+    use std::io::Write;
+    let args = RuntimeTestArgs {
+        test_mfg_flags: Some(MfgFlags::GENERATE_IDEVID_CSR),
+        ..Default::default()
+    };
+    let mut model = run_rt_test(args);
+
+    let payload = MailboxReqHeader {
+        chksum: caliptra_common::checksum::calc_checksum(
+            u32::from(CommandId::GET_IDEV_MLDSA87_CSR),
+            &[],
+        ),
+    };
+    let response = model
+        .mailbox_execute(CommandId::GET_IDEV_MLDSA87_CSR.into(), payload.as_bytes())
+        .unwrap()
+        .unwrap();
+
+    let mut csr_resp = GetIdevCsrResp::default();
+    csr_resp.as_mut_bytes()[..response.len()].copy_from_slice(&response);
+
+    let mut f = std::fs::File::create("idev_mldsa87_csr.bin").unwrap();
+    f.write_all(&csr_resp.data[..csr_resp.data_size as usize])
+        .expect("write must succeed");
 }
