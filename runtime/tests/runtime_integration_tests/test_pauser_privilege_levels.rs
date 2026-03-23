@@ -708,6 +708,7 @@ fn test_pl0_unset_in_header() {
                 .unwrap(),
                 vendor_config: opts.vendor_config,
                 owner_config: opts.owner_config,
+                pad_to_size: None,
             },
             ecc_index,
             lms_index,

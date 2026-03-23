@@ -2020,6 +2020,7 @@ fn update_header(image_bundle: &mut ImageBundle) {
         runtime: ElfExecutable::default(),
         vendor_config: opts.vendor_config,
         owner_config: opts.owner_config,
+        pad_to_size: None,
     };
 
     let gen = ImageGenerator::new(Crypto::default());

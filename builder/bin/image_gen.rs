@@ -48,7 +48,17 @@ fn main() {
         .arg(arg!(--"owner-sig-override" [FILE] "Manually overwrite the owner_sigs of the FW bundle image with the contents of binary [FILE]. The signature should be an ECC signature concatenated with an LMS signature").value_parser(value_parser!(PathBuf)))
         .arg(arg!(--"vendor-sig-override" [FILE] "Manually overwrite the vendor_sigs of the FW bundle image with the contents of binary [FILE]. The signature should be an ECC signature concatenated with an LMS signature").value_parser(value_parser!(PathBuf)))
         .arg(arg!(--"image-options" [FILE] "Override the `ImageOptions` struct for the image bundle with the given toml file").value_parser(value_parser!(PathBuf)))
+        .arg(
+            arg!(--"pad-bundle" [SIZE] "Zero-pad the runtime image so the total bundle is exactly SIZE bytes (default: 131072 = 128 KiB). Padding is included in the runtime TOC digest.")
+                .value_parser(value_parser!(u32)),
+        )
         .get_matches();
+
+    let pad_to_size: Option<u32> = if args.contains_id("pad-bundle") {
+        Some(*args.get_one::<u32>("pad-bundle").unwrap_or(&131072))
+    } else {
+        None
+    };
 
     if let Some(path) = args.get_one::<PathBuf>("rom-no-log") {
         let rom = caliptra_builder::build_firmware_rom(&firmware::ROM).unwrap();
@@ -79,15 +89,22 @@ fn main() {
     if let Some(path) = args.get_one::<PathBuf>("fw") {
         // Get image options
         let image_options = if let Some(path) = args.get_one::<PathBuf>("image-options") {
-            toml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+            let mut opts: ImageOptions =
+                toml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+            opts.pad_to_size = pad_to_size;
+            opts
         } else if args.contains_id("zeros") {
-            ImageOptions::default()
+            ImageOptions {
+                pad_to_size,
+                ..Default::default()
+            }
         } else {
             ImageOptions {
                 fmc_version: version::get_fmc_version(),
                 app_version: version::get_runtime_version(),
                 fmc_svn,
                 app_svn,
+                pad_to_size,
                 ..Default::default()
             }
         };
@@ -147,6 +164,7 @@ fn main() {
                 app_version: version::get_runtime_version(),
                 fmc_svn,
                 app_svn,
+                pad_to_size,
                 ..Default::default()
             },
         )

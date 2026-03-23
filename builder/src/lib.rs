@@ -509,6 +509,10 @@ pub struct ImageOptions {
     pub app_svn: u32,
     pub vendor_config: ImageGeneratorVendorConfig,
     pub owner_config: Option<ImageGeneratorOwnerConfig>,
+    /// If set, zero-pad the runtime image so the total bundle is exactly this
+    /// many bytes. The padding is included in the runtime TOC digest.
+    #[serde(default)]
+    pub pad_to_size: Option<u32>,
 }
 impl Default for ImageOptions {
     fn default() -> Self {
@@ -519,6 +523,7 @@ impl Default for ImageOptions {
             app_svn: Default::default(),
             vendor_config: caliptra_image_fake_keys::VENDOR_CONFIG_KEY_0,
             owner_config: Some(caliptra_image_fake_keys::OWNER_CONFIG),
+            pad_to_size: None,
         }
     }
 }
@@ -541,6 +546,7 @@ pub fn build_and_sign_image(
         runtime: ElfExecutable::new(&app_elf, opts.app_version, opts.app_svn, image_revision()?)?,
         vendor_config: opts.vendor_config,
         owner_config: opts.owner_config,
+        pad_to_size: opts.pad_to_size,
     })?;
     Ok(image)
 }

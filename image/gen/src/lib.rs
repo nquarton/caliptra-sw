@@ -135,4 +135,9 @@ where
     pub fmc: T,
 
     pub runtime: T,
+
+    /// If set, zero-pad the runtime image so that the total bundle size
+    /// (manifest + fmc + runtime) equals exactly this many bytes.
+    /// The padding is included in the runtime TOC digest.
+    pub pad_to_size: Option<u32>,
 }

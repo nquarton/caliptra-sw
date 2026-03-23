@@ -45,6 +45,7 @@ fn update_manifest(image_bundle: &mut ImageBundle, hdr_digest: HdrDigest, toc_di
         runtime: caliptra_image_elf::ElfExecutable::default(),
         vendor_config: opts.vendor_config,
         owner_config: opts.owner_config,
+        pad_to_size: None,
     };
 
     let gen = ImageGenerator::new(Crypto::default());

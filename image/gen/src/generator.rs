@@ -59,10 +59,35 @@ impl<Crypto: ImageGeneratorCrypto> ImageGenerator<Crypto> {
         let offset = IMAGE_MANIFEST_BYTE_SIZE as u32;
         let (fmc_toc, fmc) = self.gen_image(&config.fmc, id, offset)?;
 
-        // Create Runtime TOC & Content
+        // Create Runtime TOC & Content, optionally padding to fill the bundle.
         let id = ImageTocEntryId::Runtime;
         let offset = offset + fmc_toc.size;
-        let (runtime_toc, runtime) = self.gen_image(&config.runtime, id, offset)?;
+        let (runtime_toc, runtime) = if let Some(pad_to) = config.pad_to_size {
+            if pad_to > IMAGE_BYTE_SIZE as u32 {
+                bail!(
+                    "pad_to_size {pad_to} exceeds maximum image size {IMAGE_BYTE_SIZE} bytes"
+                );
+            }
+            let runtime_unpadded_size = config.runtime.size();
+            let available = pad_to
+                .checked_sub(IMAGE_MANIFEST_BYTE_SIZE as u32 + fmc_toc.size)
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "pad_to_size {pad_to} is smaller than manifest + fmc \
+                         ({} bytes)",
+                        IMAGE_MANIFEST_BYTE_SIZE as u32 + fmc_toc.size
+                    )
+                })?;
+            if runtime_unpadded_size > available {
+                bail!(
+                    "Runtime image ({runtime_unpadded_size} bytes) exceeds available \
+                     space ({available} bytes) for pad_to_size {pad_to}"
+                );
+            }
+            self.gen_image_padded(&config.runtime, id, offset, available)?
+        } else {
+            self.gen_image(&config.runtime, id, offset)?
+        };
 
         // Check if fmc and runtime image load address ranges don't overlap.
         if fmc_toc.overlaps(&runtime_toc) {
@@ -263,6 +288,40 @@ impl<Crypto: ImageGeneratorCrypto> ImageGenerator<Crypto> {
         };
 
         Ok((entry, image.content().clone()))
+    }
+
+    /// Generate image with zero-padding to `padded_size` bytes.
+    /// The padding is included in the digest and TOC size.
+    fn gen_image_padded<E>(
+        &self,
+        image: &E,
+        id: ImageTocEntryId,
+        offset: u32,
+        padded_size: u32,
+    ) -> anyhow::Result<(ImageTocEntry, Vec<u8>)>
+    where
+        E: ImageGenratorExecutable,
+    {
+        let image_type = ImageTocEntryType::Executable;
+        let mut content = image.content().clone();
+        content.resize(padded_size as usize, 0u8);
+        let digest = self.crypto.sha384_digest(&content)?;
+
+        let entry = ImageTocEntry {
+            id: id.into(),
+            image_type: image_type.into(),
+            revision: *image.rev(),
+            version: image.version(),
+            svn: image.svn(),
+            reserved: 0,
+            load_addr: image.load_addr(),
+            entry_point: image.entry_point(),
+            offset,
+            size: padded_size,
+            digest,
+        };
+
+        Ok((entry, content))
     }
 
     /// Calculate TOC digest
