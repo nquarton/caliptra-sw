@@ -73,6 +73,17 @@ pub extern "C" fn entry_point() -> ! {
 
     fix_fht(&mut env);
 
+    // Trigger CPTRA_HW_ERROR_FATAL.crypto_err: start ECC keygen and DOE UDS
+    // decrypt simultaneously (no wait between them) so both busy signals assert
+    // at the same time. RTL: crypto_error = (ecc_busy & doe_busy) | ...
+    {
+        use caliptra_registers::{doe::DoeReg, ecc::EccReg};
+        let mut ecc = unsafe { EccReg::new() };
+        let mut doe = unsafe { DoeReg::new() };
+        ecc.regs_mut().ctrl().write(|w| w.ctrl(|w| w.keygen()));
+        doe.regs_mut().ctrl().write(|w| w.cmd(|w| w.doe_uds()));
+    }
+
     if env.persistent_data.get().fht.is_valid() {
         // Set FHT fields and jump to RT for val-FMC for now
         if cfg!(feature = "fake-fmc") {

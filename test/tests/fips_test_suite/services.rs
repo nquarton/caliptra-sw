@@ -813,3 +813,24 @@ pub fn fips_self_test_rt() {
     // SELF TEST GET RESULTS
     exec_cmd_self_test_get_results(&mut hw);
 }
+
+use caliptra_api::SocManager;
+#[test]
+pub fn crypto_err_test() {
+    let mut hw = fips_test_init_to_rt(None, None);
+
+    // Step until runtime is ready OR HW_FATAL_ERROR is set
+    hw.step_until(|m| {
+        m.soc_ifc().cptra_flow_status().read().ready_for_runtime()
+            || m.soc_ifc().cptra_hw_error_fatal().read().crypto_err()
+    });
+
+    let hw_error_fatal = hw.soc_ifc().cptra_hw_error_fatal().read();
+    println!(
+        "CPTRA_HW_ERROR_FATAL = {:#010x} (crypto_err={})",
+        u32::from(hw_error_fatal),
+        hw_error_fatal.crypto_err(),
+    );
+
+    assert!(hw_error_fatal.crypto_err());
+}

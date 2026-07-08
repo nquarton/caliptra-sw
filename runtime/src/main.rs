@@ -80,6 +80,7 @@ pub extern "C" fn entry_point() -> ! {
         cprintln!("[rt] RT can't load FHT");
         handle_fatal_error(caliptra_drivers::CaliptraError::RUNTIME_HANDOFF_FHT_NOT_LOADED.into());
     }
+
     cprintln!("[rt] RT listening for mailbox commands...");
     if let Err(e) = caliptra_runtime::handle_mailbox_commands(&mut drivers) {
         handle_fatal_error(e.into());
